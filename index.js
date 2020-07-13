@@ -1,38 +1,36 @@
-'use strict';
+const fs = require('fs');
+const path = require('path');
 
-var fs = require('fs');
-var path = require('path');
-
-var _ = require('lodash');
-var flat = require('flat');
-var gutil = require('gulp-util');
-var he = require('he');
-var through = require('through2');
+const _ = require('lodash');
+const flat = require('flat');
+const gutil = require('gulp-util');
+const he = require('he');
+const through = require('through2');
 
 
 /**
  * Any loaded dictionaries are stored here with the path as key and the translation map as value.
  * @type {Object}
  */
-var dictionaries = {};
+let dictionaries = {};
 
 /**
  * A cache for previously loaded dictionaries so we don't have to load them again
  * @type {Array}
  */
-var cache = [];
+let cache = [];
 
 /**
  * Default options that are used if they are not overwritten by the user.
  * @type {Object}
  */
-var defaults = {
-  locales: '.' + path.sep + 'locales',
+let defaults = {
+  locales: './locales',
   delimiter: {
     prefix: 'R.',
     stopCondition: /[^\.\w_\-]/
   },
-  filename: '${path}' + path.sep + '${name}-${lang}.${ext}',
+  filename: '${path}/${name}-${lang}.${ext}',
   whitelist: true,
   blacklist: false,
   warn: true,
@@ -62,7 +60,7 @@ function trueOrMatch(needle, haystack) {
     return true;
   }
   if (needle instanceof Array) {
-    for (var i in needle) {
+    for (let i in needle) {
       if (trueOrMatch(needle[i], haystack)) {
         return true;
       }
@@ -77,14 +75,14 @@ function trueOrMatch(needle, haystack) {
  * @returns {String[]}
  */
 function splitIniLine(line) {
-  var separator = line.indexOf('=');
-  if (separator === -1) {
+  let separator = line.indexOf('=');
+  if (separator == -1) {
     return [line];
   }
   return [
     line.substr(0, separator),
     line.substr(separator + 1)
-  ];
+  ]
 }
 
 /**
@@ -93,17 +91,17 @@ function splitIniLine(line) {
  * @returns {{}}
  */
 function ini2json(iniData) {
-  var result = {};
-  var iniLines = iniData.toString().split('\n');
-  var context = null;
-  for (var i in iniLines) {
-    var fields = splitIniLine(iniLines[i]);
-    for (var j in fields) {
+  let result = {};
+  let iniLines = iniData.toString().split('\n');
+  let context = null;
+  for (let i in iniLines) {
+    let fields = splitIniLine(iniLines[i]);
+    for (let j in fields) {
       fields[j] = fields[j].trim();
     }
     if (fields[0].length) {
-      if (fields[0].indexOf('[')===0) {
-        context = fields[0].substring(1, fields[0].length - 1);
+      if (fields[0].indexOf('[') == 0) {
+        context = fields[0].substring(1, fields[0].length -1)
       } else {
         if (context) {
           if (!result[context]) {
@@ -128,20 +126,20 @@ function splitCsvLine(line) {
   if (!line.trim().length) {
     return [];
   }
-  var fields = [];
-  var inQuotes = false;
-  var separator = 0;
-  for (var i = 0; i < line.length; i++) {
+  let fields = [];
+  let inQuotes = false;
+  let separator = 0;
+  for (let i = 0; i < line.length; i++) {
     switch(line[i]) {
       case "\"":
-        if (i>0 && line[i-1] != "\\") {
+        if (i>0 && line[i-1] != '\\') {
           inQuotes = !inQuotes;
         }
         break;
       case ",":
         if (!inQuotes) {
           if (separator < i) {
-            var field = line.substring(separator, i).trim();
+            let field = line.substring(separator, i).trim();
             if (field.length) {
               fields.push(field);
             }
@@ -161,13 +159,13 @@ function splitCsvLine(line) {
  * @returns {Object}
  */
 function csv2json(csvData) {
-  var result = {};
-  var csvLines = csvData.toString().split('\n');
-  for (var i in csvLines) {
-    var fields = splitCsvLine(csvLines[i]);
+  let result = {};
+  let csvLines = csvData.toString().split('\n');
+  for (let i in csvLines) {
+    let fields = splitCsvLine(csvLines[i]);
     if (fields.length) {
-      var key = '';
-      for (var k = 0; k < fields.length - 1; k++) {
+      let key = '';
+      for (let k = 0; k < fields.length - 1; k++) {
         if (fields[k].length) {
           key += '.' + fields[k];
         }
@@ -183,16 +181,17 @@ function csv2json(csvData) {
  * @param {Object} options
  */
 function load(options) {
+  options.locales = path.isAbsolute(options.locales) ? path.join(process.cwd(), options.locales) : options.locales;
   if (cache[options.locales]) {
     options.verbose && gutil.log('Skip loading cached translations from', options.locales);
     return dictionaries = cache[options.locales];
   }
   try {
     options.verbose && gutil.log('Loading translations from', options.locales);
-    var files = fs.readdirSync(options.locales);
-    var count = 0;
-    for (var i in files) {
-      var file = files[i];
+    let files = fs.readdirSync(options.locales);
+    let count = 0;
+    for (let i in files) {
+      let file = files[i];
       switch (path.extname(file)) {
         case '.json':
         case '.js':
@@ -201,13 +200,13 @@ function load(options) {
           count++;
           break;
         case '.ini':
-          var iniData = fs.readFileSync(path.join(process.cwd(), options.locales, file));
+          let iniData = fs.readFileSync(path.join(process.cwd(), options.locales, file));
           dictionaries[path.basename(file, path.extname(file))] = flat(ini2json(iniData));
           options.verbose && gutil.log('Added translations from', file);
           count++;
           break;
         case '.csv':
-          var csvData = fs.readFileSync(path.join(process.cwd(), options.locales, file));
+          let csvData = fs.readFileSync(path.join(process.cwd(), options.locales, file));
           dictionaries[path.basename(file, path.extname(file))] = csv2json(csvData);
           options.verbose && gutil.log('Added translations from', file);
           count++;
@@ -233,9 +232,9 @@ function load(options) {
  * @returns {boolean}
  */
 function isBinary(buffer) {
-  var chunk = buffer.toString('utf8', 0, Math.min(buffer.length, 24));
-  for (var i in chunk) {
-    var charCode = chunk.charCodeAt(i);
+  let chunk = buffer.toString('utf8', 0, Math.min(buffer.length, 24));
+  for (let i in chunk) {
+    let charCode = chunk.charCodeAt(i);
     if (charCode == 65533 || charCode <= 8) {
       return true;
     }
@@ -252,8 +251,8 @@ function isBinary(buffer) {
  * @returns {Object}
  */
 function translate(options, contents, copied, filePath) {
-  var processed = {};
-  for (var lang in dictionaries) {
+  let processed = {};
+  for (let lang in dictionaries) {
     if (!processed[lang] && trueOrMatch(options.whitelist, lang) && !trueOrMatch(options.blacklist, lang)) {
       processed[lang] = '';
     }
@@ -268,10 +267,10 @@ function translate(options, contents, copied, filePath) {
     options.verbose && gutil.log('Ignoring file', filePath, 'because file is binary');
   } else {
     contents = contents.toString('utf8');
-    var i = contents.indexOf(options.delimiter.prefix);
+    let i = contents.indexOf(options.delimiter.prefix);
     while ((i !== -1)) {
-      var endMatch, length, token, key;
-      var tail = contents.substr(i);
+      let endMatch, length, token, key;
+      let tail = contents.substr(i);
       if (options.delimiter.suffix) {
         endMatch = tail.match(options.delimiter.suffix);
         length = endMatch.index + endMatch[0].length;
@@ -284,9 +283,9 @@ function translate(options, contents, copied, filePath) {
         token = tail.substr(0, length);
         key = token.substr(options.delimiter.prefix.length);
       }
-      var next = contents.indexOf(options.delimiter.prefix, i + length + 1);
+      let next = contents.indexOf(options.delimiter.prefix, i + length + 1);
 
-      for (var lang in processed) {
+      for (let lang in processed) {
         processed[lang] += contents.substring(copied, i);
         if (dictionaries[lang][key] !== undefined) {
           if (trueOrMatch(options.encodeEntities, filePath)) {
@@ -303,10 +302,10 @@ function translate(options, contents, copied, filePath) {
       i = next;
     }
   }
-  for (var procLang in processed) {
-    if (!processed[procLang].length) {
-      options.verbose && gutil.log('Copying original content to target language', procLang, 'because no replacements have happened');
-      processed[procLang] = contents;
+  for (let lang in processed) {
+    if (!processed[lang].length) {
+      options.verbose && gutil.log('Copying original content to target language', lang, 'because no replacements have happened');
+      processed[lang] = contents;
     }
   }
   return processed;
@@ -319,26 +318,26 @@ function translate(options, contents, copied, filePath) {
  * @returns {File[]}
  */
 function replace(file, options) {
-  var contents = file.contents;
-  var copied = 0;
+  let contents = file.contents;
+  let copied = 0;
 
-  var processed = translate(options, contents, copied, file.path);
+  let processed = translate(options, contents, copied, file.path);
 
-  var files = [];
-  for (var lang in processed) {
-    var params = {};
+  let files = [];
+  for (let lang in processed) {
+    let params = {};
     params.ext = path.extname(file.path).substr(1);
     params.name = path.basename(file.path, path.extname(file.path));
-    params.path = file.path.substring(file.base.length, file.path.lastIndexOf(path.sep));
+    params.path = file.path.substring(file.base.length, file.path.lastIndexOf('/'));
     params.lang = lang;
 
-    var filePath = options.filename;
-    for (var param in params) {
+    let filePath = options.filename;
+    for (let param in params) {
       filePath = filePath.replace('${' + param + '}', params[param]);
     }
     filePath = path.join(file.base,filePath);
 
-    var newFile = new gutil.File({
+    let newFile = new gutil.File({
       base: file.base,
       cwd: file.cwd,
       path: filePath,
@@ -347,7 +346,7 @@ function replace(file, options) {
     files.push(newFile);
   }
 
-	return files;
+  return files;
 }
 
 /**
@@ -377,7 +376,7 @@ module.exports = function(options) {
     }
 
     try {
-      var files = replace(file, options);
+      let files = replace(file, options);
       if (trueOrMatch(options.dryRun, file.path)) {
         options.verbose && gutil.log('Ignoring all translations and passing on original file because "dryRun" was set');
         this.push(file);
@@ -386,7 +385,7 @@ module.exports = function(options) {
           options.verbose && gutil.log('Passing on original file because "includeOriginal" was set');
           this.push(file);
         }
-        for (var i in files) {
+        for (let i in files) {
           options.verbose && gutil.log('Passing on translated file', files[i].path);
           this.push(files[i]);
         }
