@@ -40,7 +40,8 @@ let defaults = {
   includeOriginal: false,
   ignoreTokens: false,
   encodeEntities: true,
-  verbose: false
+  verbose: false,
+  rootLang: ''
 };
 
 /**
@@ -188,6 +189,7 @@ function load(options) {
   }
   try {
     options.verbose && gutil.log('Loading translations from', options.locales);
+    options.verbose && gutil.log('Default Language:', options.rootLang);
     let files = fs.readdirSync(options.locales);
     let count = 0;
     for (let i in files) {
@@ -338,7 +340,11 @@ function replace(file, options) {
 
     let filePath = options.filename;
     for (let param in params) {
-      filePath = filePath.replace('${' + param + '}', params[param]);
+      if (params[param] == options.rootLang) {
+        filePath = filePath.replace('${' + param + '}', '');
+      } else {
+        filePath = filePath.replace('${' + param + '}', params[param]);
+      }
     }
     filePath = path.join(file.base,filePath);
 
