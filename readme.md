@@ -26,6 +26,11 @@ Features (cause we all love features):
  * Read from .json, .js, .ini or .csv file (for examples check the test folder),
  * Filters for individual files
  
+## Changes since fork:
+* Const / var / let variable declaration improvements
+* Load JSON from disk without cache from 'require' function
+* Added rootLang config option (thanks to ```herrkessler / gulp-international```)
+
 
 
 ## Install
