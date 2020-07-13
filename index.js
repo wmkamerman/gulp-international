@@ -195,7 +195,7 @@ function load(options) {
       switch (path.extname(file)) {
         case '.json':
         case '.js':
-          dictionaries[path.basename(file, path.extname(file))] = flat(require(path.join(process.cwd(), options.locales, file)));
+          dictionaries[path.basename(file, path.extname(file))] = flat(requireUncached(path.join(process.cwd(), options.locales, file)));
           options.verbose && gutil.log('Added translations from', file);
           count++;
           break;
@@ -224,6 +224,11 @@ function load(options) {
     e.message = 'No translation dictionaries have been found!';
     throw e;
   }
+}
+
+function requireUncached(module) {
+  delete require.cache[require.resolve(module)];
+  return require(module);
 }
 
 /**
